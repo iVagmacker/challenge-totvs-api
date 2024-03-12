@@ -18,6 +18,7 @@ Este projeto abrange um sistema completo de gerenciamento de clientes, com um ba
 - Arquivo Dockerfile claro para realizar deploy da aplicação, facilitando a implementação em diferentes ambientes.
 
 ### Além de realizar instruções para o deploy da aplicação, aqui está a aplicação back-end publicada em uma cloud gratuita, onde o arquivo Dockerfile foi o responsável por fazer toda a responsabilidade de executar a aplicação e os nossos testes também.
-Link: https://challenge-totvs-render.onrender.com
+Host da aplicação publicada: https://challenge-totvs-render.onrender.com
+Link para testar no Insomnia/Postman: https://challenge-totvs-render.onrender.com/api/customers
 ### Observação da Cloud Render:
 Por se tratar de uma cloud gratuita, a instância ficará inativa até ser chamada, ou seja, quando nossa aplicação local ou em produção realizar requisições, pode atrasar as solicitações em 50 segundos ou mais.
