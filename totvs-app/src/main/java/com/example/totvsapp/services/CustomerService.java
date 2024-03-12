@@ -41,36 +41,16 @@ public class CustomerService {
   @Transactional
   public Customers insert(CustomersDTO customersDTO) {
     try {
+      validatePhones(customersDTO.phones());
 
-      if (customersDTO.phones() == null || customersDTO.phones().isEmpty()) {
-        throw new PhoneEmptyException();
-      }
       Customers newCustomers = new Customers(customersDTO);
+      List<Phones> phones = createPhoneEntities(newCustomers, customersDTO.phones());
+
+      newCustomers.setPhones(phones);
       customerRepository.save(newCustomers);
-      List<String> phoneNumbers = customersDTO.phones();
 
-      if (phoneNumbers != null && !phoneNumbers.isEmpty()) {
-
-        for (String phoneNumber : phoneNumbers) {
-          if (!isValidPhoneNumber(phoneNumber)) {
-            throw new PhoneFormatInvalidException(phoneNumber);
-          }
-
-          Phones phoneAlreadyExist = phoneRepository.findByNumber(phoneNumber);
-          if (phoneAlreadyExist != null) {
-            throw new PhoneAlreadyLinkedException();
-          }
-        }
-        List<Phones> phones = phoneNumbers.stream().map(phoneNumber -> {
-          Phones phone = new Phones();
-          phone.setNumber(phoneNumber);
-          phone.setCustomers(newCustomers);
-          return phone;
-        }).collect(Collectors.toList());
-
-        phoneRepository.saveAll(phones);
-        newCustomers.setPhones(phones);
-      }
+      phones.forEach(phone -> phone.setCustomers(newCustomers));
+      phoneRepository.saveAll(phones);
 
       return newCustomers;
     } catch (PhoneEmptyException | PhoneFormatInvalidException | PhoneAlreadyLinkedException e) {
@@ -125,30 +105,43 @@ public class CustomerService {
    */
   @Transactional
   public Customers update(Long id, CustomersDTO customersDTO) {
-    Customers customers = customerRepository.findById(id)
-        .orElseThrow(() -> new CustomerNotFoundException());
+    try {
+      Customers customers = customerRepository.findById(id)
+          .orElseThrow(() -> new CustomerNotFoundException());
 
-    customers.setName(customersDTO.name());
-    customers.setAddress(customersDTO.address());
-    customers.setDistrict(customersDTO.district());
+      validatePhones(customersDTO.phones());
 
-    List<Phones> existingPhones = phoneRepository.findByCustomersId(id);
-    List<String> newPhoneNumbers = customersDTO.phones();
+      customers.setName(customersDTO.name());
+      customers.setAddress(customersDTO.address());
+      customers.setDistrict(customersDTO.district());
 
-    existingPhones.stream().filter(phone -> !newPhoneNumbers.contains(phone.getNumber()))
-        .forEach(phoneRepository::delete);
+      List<Phones> existingPhones = phoneRepository.findByCustomersId(id);
+      List<String> newPhoneNumbers = customersDTO.phones();
 
-    for (String newPhoneNumber : newPhoneNumbers) {
-      Phones phone = existingPhones.stream().filter(existingPhone -> existingPhone.getNumber().equals(newPhoneNumber))
-          .findFirst()
-          .orElseGet(() -> new Phones());
+      existingPhones.stream()
+          .filter(phone -> !newPhoneNumbers.contains(phone.getNumber()))
+          .forEach(phoneRepository::delete);
 
-      phone.setNumber(newPhoneNumber);
-      phone.setCustomers(customers);
-      phoneRepository.save(phone);
+      for (String newPhoneNumber : newPhoneNumbers) {
+        Phones phone = existingPhones.stream()
+            .filter(existingPhone -> existingPhone.getNumber().equals(newPhoneNumber))
+            .findFirst()
+            .orElseGet(() -> new Phones(newPhoneNumber));
+
+        // Verifica se o telefone pertence a outro cliente
+        if (phone.getCustomers() != null && !phone.getCustomers().equals(customers)) {
+          throw new PhoneAlreadyLinkedException();
+        }
+
+        phone.setCustomers(customers);
+        phoneRepository.save(phone);
+      }
+
+      return customerRepository.save(customers);
+    } catch (CustomerNotFoundException | PhoneEmptyException | PhoneFormatInvalidException
+        | PhoneAlreadyLinkedException e) {
+      throw new RuntimeException("Erro ao atualizar cliente", e);
     }
-
-    return customerRepository.save(customers);
   }
 
   /**
@@ -177,5 +170,55 @@ public class CustomerService {
    */
   private boolean isValidPhoneNumber(String phoneNumber) {
     return phoneNumber.matches("\\d{10,11}");
+  }
+
+  /**
+   * Valida a lista de números de telefone, garantindo que não está vazia, que
+   * cada número é válido
+   * e que nenhum dos números já está associado a outro cliente.
+   *
+   * @param phoneNumbers Lista de números de telefone a serem validados.
+   * @throws PhoneEmptyException         Se a lista de números de telefone estiver
+   *                                     vazia.
+   * @throws PhoneFormatInvalidException Se pelo menos um número de telefone não
+   *                                     for válido.
+   * @throws PhoneAlreadyLinkedException Se pelo menos um número de telefone já
+   *                                     estiver associado a outro cliente.
+   */
+  private void validatePhones(List<String> phoneNumbers) {
+    if (phoneNumbers == null || phoneNumbers.isEmpty() || phoneNumbers.size() == 0
+        || phoneNumbers.stream().allMatch(String::isEmpty)) {
+      throw new PhoneEmptyException();
+    }
+
+    for (String phoneNumber : phoneNumbers) {
+      if (!isValidPhoneNumber(phoneNumber)) {
+        throw new PhoneFormatInvalidException(phoneNumber);
+      }
+
+      Phones phoneAlreadyExist = phoneRepository.findByNumber(phoneNumber);
+      if (phoneAlreadyExist != null) {
+        throw new PhoneAlreadyLinkedException();
+      }
+    }
+  }
+
+  /**
+   * Cria entidades de telefone com base nos números fornecidos e associa-as a um
+   * cliente.
+   *
+   * @param customer     O cliente ao qual os telefones serão associados.
+   * @param phoneNumbers Lista de números de telefone a serem utilizados para
+   *                     criar as entidades de telefone.
+   * @return Lista de entidades de telefone associadas ao cliente.
+   */
+  private List<Phones> createPhoneEntities(Customers customer, List<String> phoneNumbers) {
+    return phoneNumbers.stream()
+        .map(phoneNumber -> {
+          Phones phone = new Phones(phoneNumber);
+          phone.setCustomers(customer);
+          return phone;
+        })
+        .collect(Collectors.toList());
   }
 }

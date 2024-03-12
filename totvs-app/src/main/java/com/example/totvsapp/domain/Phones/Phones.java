@@ -29,4 +29,12 @@ public class Phones {
   @JoinColumn(name = "customer_id")
   @JsonIgnore
   private Customers customers;
+
+  public Phones() {
+    
+  }
+
+  public Phones(String number) {
+    this.number = number;
+  }
 }

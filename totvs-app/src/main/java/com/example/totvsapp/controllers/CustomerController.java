@@ -29,7 +29,6 @@ import com.example.totvsapp.services.CustomerService;
  */
 @RestController
 @RequestMapping("/api/customers")
-@CrossOrigin(origins = "http://localhost:4200")
 public class CustomerController {
 
   @Autowired

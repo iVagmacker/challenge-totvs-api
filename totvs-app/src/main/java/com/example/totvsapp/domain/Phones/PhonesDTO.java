@@ -1,5 +1,7 @@
 package com.example.totvsapp.domain.Phones;
 
-public record PhonesDTO(String number) {
+import com.example.totvsapp.domain.Customers.Customers;
+
+public record PhonesDTO(String number, Customers customers) {
   
 }

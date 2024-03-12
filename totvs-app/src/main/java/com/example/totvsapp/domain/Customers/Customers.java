@@ -1,6 +1,7 @@
 package com.example.totvsapp.domain.Customers;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.example.totvsapp.domain.Phones.Phones;
 
@@ -43,5 +44,16 @@ public class Customers {
     this.name = customersDTO.name();
     this.address = customersDTO.address();
     this.district = customersDTO.district();
+    this.phones = createPhoneEntities(customersDTO.phones());
+  }
+
+  private List<Phones> createPhoneEntities(List<String> phoneNumbers) {
+    return phoneNumbers.stream()
+        .map(phoneNumber -> {
+          Phones phone = new Phones(phoneNumber);
+          phone.setCustomers(this);
+          return phone;
+        })
+        .collect(Collectors.toList());
   }
 }
